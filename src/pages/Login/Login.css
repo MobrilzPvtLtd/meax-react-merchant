@@ -1,0 +1,318 @@
+/* Meax Admin Login Screen Styles */
+
+.login-root {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  background-color: #f6faf3;
+  font-family: var(--font-sans);
+}
+
+/* Left Brand Sidebar */
+.login-left-panel {
+  flex: 0 0 38%;
+  max-width: 520px;
+  min-width: 360px;
+  background-color: #94d66a;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 4.5rem 3.75rem 4rem 3.75rem;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.login-brand-top {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.login-logo-img {
+  width: 100%;
+  max-width: 360px;
+  height: auto;
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.04));
+}
+
+.login-brand-bottom {
+  margin-top: 3rem;
+}
+
+.login-console-title {
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: #274d1c;
+  line-height: 1.25;
+  margin: 0 0 0.5rem 0;
+  letter-spacing: -0.015em;
+}
+
+.login-console-desc {
+  font-size: 0.9375rem;
+  color: #274d1c;
+  opacity: 0.92;
+  line-height: 1.5;
+  max-width: 320px;
+  margin: 0;
+  font-weight: 450;
+}
+
+/* Right Content Area */
+.login-right-panel {
+  flex: 1;
+  background-color: #f6faf3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.login-form-container {
+  width: 100%;
+  max-width: 440px;
+  animation: loginFadeIn 0.35s ease-out;
+}
+
+@keyframes loginFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.login-heading {
+  font-size: 2.125rem;
+  font-weight: 800;
+  color: #172419;
+  margin: 0 0 0.45rem 0;
+  letter-spacing: -0.025em;
+}
+
+.login-subheading {
+  font-size: 0.9375rem;
+  color: #556956;
+  margin: 0 0 2rem 0;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+/* Form Controls */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+}
+
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.login-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1f2b20;
+}
+
+.login-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.login-input {
+  width: 100%;
+  height: 48px;
+  padding: 0 1rem;
+  font-size: 0.9375rem;
+  color: #1f2937;
+  background-color: #ffffff;
+  border: 1px solid #d4ded3;
+  border-radius: 10px;
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.login-input:hover {
+  border-color: #b5c7b3;
+}
+
+.login-input:focus {
+  border-color: #3b7d2a;
+  box-shadow: 0 0 0 3px rgba(59, 125, 42, 0.15);
+}
+
+.login-input.has-error {
+  border-color: var(--error);
+  box-shadow: 0 0 0 3px var(--error-bg);
+}
+
+.login-input-toggle {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #6a7c6b;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: color 0.15s ease;
+}
+
+.login-input-toggle:hover {
+  color: #274d1c;
+}
+
+.login-field-error {
+  font-size: 0.75rem;
+  color: var(--error);
+  margin-top: 0.125rem;
+}
+
+.login-error-banner {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+/* Primary Button */
+.login-submit-button {
+  width: 100%;
+  height: 48px;
+  background-color: #3b7d2a;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+  transition: background-color 0.18s ease, transform 0.1s ease, box-shadow 0.18s ease;
+  font-family: inherit;
+}
+
+.login-submit-button:hover:not(:disabled) {
+  background-color: #326d24;
+  box-shadow: 0 4px 14px rgba(59, 125, 42, 0.25);
+}
+
+.login-submit-button:active:not(:disabled) {
+  transform: scale(0.99);
+  background-color: #2a5b1e;
+}
+
+.login-submit-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Forgot Password Link */
+.login-forgot-link {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  color: #337324;
+  text-decoration: underline;
+  font-size: 0.84rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 0.25rem;
+  font-family: inherit;
+  transition: color 0.15s ease;
+}
+
+.login-forgot-link:hover {
+  color: #235518;
+}
+
+/* Modal styles for forgot password / info */
+.login-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  z-index: 1000;
+  animation: loginFadeIn 0.2s ease-out;
+}
+
+.login-modal-card {
+  background: #ffffff;
+  border-radius: 14px;
+  max-width: 440px;
+  width: 100%;
+  padding: 2rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+  .login-root {
+    flex-direction: column;
+  }
+
+  .login-left-panel {
+    flex: none;
+    width: 100%;
+    max-width: none;
+    min-width: auto;
+    padding: 3rem 2rem 2.5rem;
+    gap: 2.5rem;
+  }
+
+  .login-logo-img {
+    max-width: 290px;
+    margin: 0 auto;
+  }
+
+  .login-brand-top {
+    align-items: center;
+  }
+
+  .login-brand-bottom {
+    margin-top: 0;
+    text-align: center;
+  }
+
+  .login-console-desc {
+    margin: 0 auto;
+  }
+
+  .login-right-panel {
+    flex: none;
+    width: 100%;
+    padding: 2.5rem 1.5rem 3.5rem;
+    min-height: auto;
+  }
+}
