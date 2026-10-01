@@ -1,12 +1,12 @@
 /**
- * Base API Client using Axios
- * Automatically injects authentication tokens, normalizes base URLs,
- * handles request timeouts, and provides unified error extraction.
+ * Base API Client using Axios with HttpOnly Cookie Security
+ * - withCredentials: true ensures HttpOnly cookies are automatically sent & received.
+ * - No tokens are stored in localStorage/sessionStorage.
+ * - Silent refresh token rotation handles 401 expiration seamlessly.
  */
 
 import axios from 'axios';
-import { APP_CONFIG, STORAGE_KEYS } from '../utils/constants';
-import { storage } from '../utils/helpers';
+import { APP_CONFIG } from '../utils/constants';
 
 export const api = axios.create({
   baseURL: APP_CONFIG.API_BASE_URL,
@@ -14,47 +14,77 @@ export const api = axios.create({
     'Content-Type': 'application/json',
     Accept: 'application/json',
   },
+  withCredentials: true, // Crucial for sending/receiving HttpOnly cookies cross-origin
   timeout: 15000,
 });
 
-/**
- * Request Interceptor
- * Injects Bearer token from localStorage for all outgoing requests
- */
-api.interceptors.request.use(
-  (config) => {
-    const token = storage.get(STORAGE_KEYS.AUTH_TOKEN);
-    if (token && !config.headers.Authorization) {
-      config.headers.Authorization = `Bearer ${token}`;
+// Refresh token concurrency management
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
     }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+  });
+  failedQueue = [];
+};
 
 /**
  * Response Interceptor
- * Unwraps data payload and formats error messages cleanly
+ * 1. Automatically unwraps data payload.
+ * 2. On 401 Unauthorized, transparently rotates/refreshes the access token via HttpOnly cookies.
  */
 api.interceptors.response.use(
   (response) => {
-    // Axios puts the server's body in response.data
     return response.data;
   },
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
     const status = error.response?.status;
     const responseData = error.response?.data;
+    const requestUrl = originalRequest?.url || '';
 
-    // Handle token expiry / unauthorized for authenticated requests
-    if (status === 401 && !error.config?.url?.includes('/auth/login')) {
-      storage.clearAuth();
-      window.dispatchEvent(new Event('auth:unauthorized'));
+    // Ignore 401s on auth endpoints (login, refresh, logout) to avoid infinite loops
+    const isAuthEndpoint =
+      requestUrl.includes('/auth/login') ||
+      requestUrl.includes('/auth/refresh') ||
+      requestUrl.includes('/auth/logout');
+
+    if (status === 401 && !isAuthEndpoint && !originalRequest._retry) {
+      if (isRefreshing) {
+        // Queue pending requests while refresh is in-flight
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(() => api(originalRequest))
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        // Trigger backend token rotation using the HttpOnly refreshToken cookie
+        await api.post('/auth/refresh');
+        processQueue(null);
+        return api(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        window.dispatchEvent(new Event('auth:unauthorized'));
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
     }
 
-    // Extract human-friendly error message from backend structure
+    // Extract human-friendly error message from backend
     let message = responseData?.error?.message || responseData?.message;
 
-    // Handle validation details array if present (e.g. Zod / backend validation)
+    // Handle backend validation details array if present (e.g. Zod)
     if (
       responseData?.error?.details &&
       Array.isArray(responseData.error.details) &&
@@ -77,7 +107,7 @@ api.interceptors.response.use(
     customError.data = responseData;
     customError.code = responseData?.error?.code || error.code;
 
-    console.warn(`[ApiClient] Request to ${error.config?.url || 'endpoint'} failed:`, message);
+    console.warn(`[ApiClient] Request to ${requestUrl} failed:`, message);
 
     return Promise.reject(customError);
   }

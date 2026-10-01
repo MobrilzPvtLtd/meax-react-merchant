@@ -35,7 +35,6 @@ export const storage = {
   },
 
   clearAuth: () => {
-    storage.remove(STORAGE_KEYS.AUTH_TOKEN);
     storage.remove(STORAGE_KEYS.AUTH_USER);
   },
 };

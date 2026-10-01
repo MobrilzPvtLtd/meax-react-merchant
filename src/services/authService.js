@@ -1,6 +1,7 @@
 /**
- * Authentication Service for Merchant Portal
- * Connects to MEAX backend auth API (${VITE_API_BASE_URL}/auth/login)
+ * Authentication Service for Merchant Portal (HttpOnly Cookie Mode)
+ * - Zero tokens stored in localStorage or sessionStorage.
+ * - Browser manages access and refresh tokens via secure HttpOnly cookies.
  */
 
 import { api } from './api';
@@ -10,11 +11,11 @@ import { STORAGE_KEYS } from '../utils/constants';
 export const authService = {
   /**
    * Log in merchant with credentials
-   * Calls: POST ${VITE_API_BASE_URL}/auth/login
-   * Body: { "email": "...", "password": "..." }
+   * Calls: POST /auth/login
+   * Cookies: Backend sets HttpOnly accessToken & refreshToken
    * 
    * @param {{ email: string, password: string }} credentials
-   * @returns {Promise<{ token: string, user: object }>}
+   * @returns {Promise<{ user: object }>}
    */
   async login({ email, password }) {
     const payload = {
@@ -23,27 +24,13 @@ export const authService = {
     };
 
     const response = await api.post('/auth/login', payload);
-
-    // Support standard backend response: response.data.tokens.accessToken
-    // and fallback shapes: response.tokens.accessToken, response.data.token, response.token
-    const token =
-      response?.data?.tokens?.accessToken ||
-      response?.tokens?.accessToken ||
-      response?.data?.token ||
-      response?.token;
-
-    const refreshToken =
-      response?.data?.tokens?.refreshToken ||
-      response?.tokens?.refreshToken ||
-      response?.refreshToken;
-
     const rawUser = response?.data?.user || response?.user;
 
-    if (!token || !rawUser) {
-      throw new Error(response?.message || 'Login failed. Invalid response received from server.');
+    if (!rawUser) {
+      throw new Error(response?.message || 'Login failed. User profile missing in server response.');
     }
 
-    // Ensure role authorization if specified
+    // Role authorization check
     if (rawUser.role && rawUser.role !== 'MERCHANT' && rawUser.role !== 'ADMIN') {
       throw new Error('Access denied. This portal is restricted to Merchant accounts.');
     }
@@ -58,30 +45,62 @@ export const authService = {
         (rawUser.firstName ? `${rawUser.firstName} ${rawUser.lastName || ''}`.trim() : 'My Store'),
     };
 
-    // Persist session tokens & user profile
-    storage.set(STORAGE_KEYS.AUTH_TOKEN, token);
-    if (refreshToken) {
-      storage.set('meax_merchant_refresh_token', refreshToken);
-    }
+    // Cache non-sensitive user profile for UI responsiveness
     storage.set(STORAGE_KEYS.AUTH_USER, user);
 
-    return { token, user };
+    return { user };
   },
 
   /**
-   * Log out and clear stored session
+   * Fetch current authenticated session profile
+   * Calls: GET /auth/me (authenticates via HttpOnly accessToken cookie)
+   */
+  async getProfile() {
+    const response = await api.get('/auth/me');
+    const rawUser = response?.data?.user || response?.user;
+
+    if (!rawUser) {
+      throw new Error('Failed to retrieve user profile.');
+    }
+
+    const user = {
+      ...rawUser,
+      name:
+        rawUser.name ||
+        (rawUser.firstName ? `${rawUser.firstName} ${rawUser.lastName || ''}`.trim() : rawUser.email),
+      storeName:
+        rawUser.storeName ||
+        (rawUser.firstName ? `${rawUser.firstName} ${rawUser.lastName || ''}`.trim() : 'My Store'),
+    };
+
+    storage.set(STORAGE_KEYS.AUTH_USER, user);
+    return user;
+  },
+
+  /**
+   * Rotate access & refresh tokens
+   * Calls: POST /auth/refresh (authenticates via HttpOnly refreshToken cookie)
+   */
+  async refresh() {
+    return api.post('/auth/refresh');
+  },
+
+  /**
+   * Log out and clear session
+   * Calls: POST /auth/logout so server instructs browser to clear HttpOnly cookies
    */
   async logout() {
-    storage.clearAuth();
-    storage.remove('meax_merchant_refresh_token');
+    try {
+      await api.post('/auth/logout');
+    } catch (err) {
+      console.warn('[authService] Server logout notification failed:', err.message);
+    } finally {
+      storage.clearAuth();
+    }
   },
 
-  getCurrentUser() {
+  getCachedUser() {
     return storage.get(STORAGE_KEYS.AUTH_USER, null);
-  },
-
-  getStoredToken() {
-    return storage.get(STORAGE_KEYS.AUTH_TOKEN, null);
   },
 };
 

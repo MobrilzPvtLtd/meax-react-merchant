@@ -4,9 +4,11 @@ import {
   selectAuth,
   selectCurrentUser,
   selectIsAuthenticated,
+  selectIsAuthInitialized,
   selectAuthLoading,
   selectAuthError,
   setLoading,
+  setInitialized,
   loginSuccess,
   loginFailure,
   logout as logoutAction,
@@ -24,9 +26,27 @@ export const useAuth = () => {
   const auth = useSelector(selectAuth);
   const user = useSelector(selectCurrentUser);
   const isAuthenticated = useSelector(selectIsAuthenticated);
+  const isInitialized = useSelector(selectIsAuthInitialized);
   const loading = useSelector(selectAuthLoading);
   const error = useSelector(selectAuthError);
 
+  /**
+   * Check active session against backend /auth/me on app load
+   */
+  const checkSession = async () => {
+    try {
+      const userProfile = await authService.getProfile();
+      dispatch(loginSuccess({ user: userProfile }));
+      return userProfile;
+    } catch {
+      dispatch(setInitialized(true));
+      return null;
+    }
+  };
+
+  /**
+   * Log in merchant with credentials (HttpOnly cookies set by server)
+   */
   const login = async (credentials, redirectTo) => {
     dispatch(setLoading(true));
     dispatch(clearError());
@@ -43,6 +63,9 @@ export const useAuth = () => {
     }
   };
 
+  /**
+   * Log out and clear server cookies + local state
+   */
   const logout = async () => {
     try {
       await authService.logout();
@@ -60,8 +83,10 @@ export const useAuth = () => {
     ...auth,
     user,
     isAuthenticated,
+    isInitialized,
     loading,
     error,
+    checkSession,
     login,
     logout,
     updateProfile,

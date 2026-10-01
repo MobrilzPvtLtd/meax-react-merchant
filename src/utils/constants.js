@@ -22,7 +22,6 @@ export const ROUTES = {
 };
 
 export const STORAGE_KEYS = {
-  AUTH_TOKEN: 'meax_merchant_token',
   AUTH_USER: 'meax_merchant_user',
   THEME_MODE: 'meax_merchant_theme_mode',
 };

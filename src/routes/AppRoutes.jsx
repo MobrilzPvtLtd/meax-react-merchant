@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
 import MainLayout from '../components/layout/MainLayout';
@@ -15,16 +15,17 @@ const Settings = lazy(() => import('../pages/Settings/Settings'));
 
 /**
  * Enterprise Protected Route Wrapper
- * 1. Verifies authentication status.
- * 2. Enforces Role-Based Access Control (RBAC).
- * 3. Preserves requested location to seamlessly redirect after login.
+ * 1. Waits for session verification to complete.
+ * 2. Verifies authentication status.
+ * 3. Enforces Role-Based Access Control (RBAC).
+ * 4. Preserves requested location to seamlessly redirect after login.
  */
 const ProtectedRoute = ({ children, requiredRole = USER_ROLES.MERCHANT }) => {
-  const { isAuthenticated, user, loading } = useAuth();
+  const { isAuthenticated, isInitialized, user, loading } = useAuth();
   const location = useLocation();
 
-  if (loading) {
-    return <LoadingSpinner fullScreen message="Authenticating merchant..." />;
+  if (!isInitialized || loading) {
+    return <LoadingSpinner fullScreen message="Checking session..." />;
   }
 
   if (!isAuthenticated) {
@@ -49,6 +50,19 @@ const ProtectedRoute = ({ children, requiredRole = USER_ROLES.MERCHANT }) => {
  * Central Merchant Routing Configuration
  */
 export const AppRoutes = () => {
+  const { isInitialized, checkSession } = useAuth();
+
+  // On initial app mount, verify session against backend /auth/me
+  useEffect(() => {
+    if (!isInitialized) {
+      checkSession();
+    }
+  }, [isInitialized]);
+
+  if (!isInitialized) {
+    return <LoadingSpinner fullScreen message="Initializing MEAX Portal..." />;
+  }
+
   return (
     <Suspense fallback={<LoadingSpinner fullScreen message="Loading portal..." />}>
       <Routes>
