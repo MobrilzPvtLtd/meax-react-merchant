@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import OnboardingStepper from '../../components/features/onboarding/OnboardingStepper';
 import BusinessStepForm from '../../components/features/onboarding/BusinessStepForm';
 import LocationStepForm from '../../components/features/onboarding/LocationStepForm';
@@ -13,114 +13,100 @@ import '../Login/Login.css';
 
 /**
  * Merchant Registration & Onboarding Page
- * Step 1: Business Profile Setup
- * Step 2: Store Location / Details
- * Step 3: Licensing
- * Step 4: Payouts (Stripe Connect)
- * Step 5: Tracking & Review Status
+ * Clean URL: /register (no step id in query parameters)
+ *
+ * Uses GET /api/v1/auth/merchant/onboarding/tracking to automatically determine
+ * active step and restore saved data.
+ *
+ * Once business profile is registered, the merchant cannot navigate back to Step 1.
+ * When clicking "Back" between onboarding steps, previously entered data is retained.
  */
 export const Register = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const stepQuery = parseInt(searchParams.get('step') || '1', 10);
-  const [currentStep, setCurrentStep] = useState(
-    stepQuery >= 1 && stepQuery <= 5 ? stepQuery : 1
-  );
+  const [currentStep, setCurrentStep] = useState(1);
   const [onboardingData, setOnboardingData] = useState({});
 
-  // Sync state when query param changes externally
-  useEffect(() => {
-    if (stepQuery >= 1 && stepQuery <= 5 && stepQuery !== currentStep) {
-      setCurrentStep(stepQuery);
-    }
-  }, [stepQuery]);
-
-  // If already approved, redirect to dashboard; if visiting /register without ?step=, align to active step
+  // Query backend tracking on mount to determine current onboarding step and restore saved data
   useEffect(() => {
     let isMounted = true;
-    const checkStatus = async () => {
+
+    const fetchTracking = async () => {
       try {
         const response = await merchantOnboardingService.getTracking();
         const tracking = response?.data || response;
         if (!isMounted || !tracking) return;
 
-        // If admin has approved this merchant, route them straight to Dashboard
+        // If admin has approved this merchant, route straight to Dashboard
         if (tracking.registration_status === 'APPROVED' || tracking.checklist?.admin_approved) {
           navigate(ROUTES.DASHBOARD, { replace: true });
           return;
         }
 
-        // If user accessed /register without an explicit step param, navigate to where they left off
-        if (!searchParams.get('step')) {
-          if (
-            tracking.registration_status === 'UNDER_REVIEW' ||
-            tracking.registration_status === 'REJECTED' ||
-            tracking.current_step === 'TRACKING'
-          ) {
-            setCurrentStep(5);
-            setSearchParams({ step: '5' }, { replace: true });
-          } else if (tracking.current_step) {
-            const stepMap = {
-              BUSINESS: 1,
-              DETAILS: 2,
-              LICENSE: 3,
-              PAYOUTS: 4,
-              TRACKING: 5,
-            };
-            const target = stepMap[tracking.current_step] || 2;
-            setCurrentStep(target);
-            setSearchParams({ step: String(target) }, { replace: true });
-          }
+        // Map current step based on /api/v1/auth/merchant/onboarding/tracking
+        if (
+          tracking.registration_status === 'UNDER_REVIEW' ||
+          tracking.registration_status === 'REJECTED' ||
+          tracking.current_step === 'TRACKING'
+        ) {
+          setCurrentStep(5);
+        } else if (tracking.current_step === 'PAYOUTS') {
+          setCurrentStep(4);
+        } else if (tracking.current_step === 'LICENSE') {
+          setCurrentStep(3);
+        } else if (tracking.current_step === 'DETAILS') {
+          setCurrentStep(2);
+        } else {
+          setCurrentStep(1);
         }
+
+        // Restore saved profile & location data into state
+        setOnboardingData((prev) => ({
+          ...prev,
+          business: {
+            business_name: tracking.business_name || prev.business?.business_name || '',
+            business_email: tracking.business_email || prev.business?.business_email || '',
+            business_phone: tracking.business_phone || prev.business?.business_phone || '',
+            store_category_type: tracking.store_category_type || prev.business?.store_category_type || 1,
+          },
+          location:
+            tracking.store_location ||
+            (tracking.store_address ? { store_address: tracking.store_address } : prev.location) ||
+            null,
+          license: tracking.license_document_url
+            ? { license_document_url: tracking.license_document_url }
+            : prev.license || null,
+          payout: tracking.payout_account || prev.payout || null,
+        }));
       } catch {
-        // Not authenticated or no merchant record yet -> stay on Step 1
+        // Unauthenticated visitor -> start on Step 1: Business Profile
       }
     };
 
-    checkStatus();
+    fetchTracking();
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [navigate]);
 
   const handleStep1Complete = (data) => {
     setOnboardingData((prev) => ({ ...prev, business: data }));
     setCurrentStep(2);
-    setSearchParams({ step: '2' });
   };
 
   const handleStep2Complete = (data) => {
     setOnboardingData((prev) => ({ ...prev, location: data }));
     setCurrentStep(3);
-    setSearchParams({ step: '3' });
   };
 
   const handleStep3Complete = (data) => {
     setOnboardingData((prev) => ({ ...prev, license: data }));
     setCurrentStep(4);
-    setSearchParams({ step: '4' });
   };
 
   const handleStep4Complete = (data) => {
     setOnboardingData((prev) => ({ ...prev, payout: data }));
     setCurrentStep(5);
-    setSearchParams({ step: '5' });
-  };
-
-  const handleBackToStep1 = () => {
-    setCurrentStep(1);
-    setSearchParams({ step: '1' });
-  };
-
-  const handleBackToStep2 = () => {
-    setCurrentStep(2);
-    setSearchParams({ step: '2' });
-  };
-
-  const handleBackToStep3 = () => {
-    setCurrentStep(3);
-    setSearchParams({ step: '3' });
   };
 
   return (
@@ -191,13 +177,16 @@ export const Register = () => {
 
           {/* Step 1: Business Profile Form */}
           {currentStep === 1 && (
-            <BusinessStepForm onStepComplete={handleStep1Complete} />
+            <BusinessStepForm
+              initialData={onboardingData.business}
+              onStepComplete={handleStep1Complete}
+            />
           )}
 
-          {/* Step 2: Store Location / Details Form */}
+          {/* Step 2: Store Location / Details Form - Cannot navigate back to Step 1 account registration */}
           {currentStep === 2 && (
             <LocationStepForm
-              onBack={handleBackToStep1}
+              initialData={onboardingData.location}
               onStepComplete={handleStep2Complete}
             />
           )}
@@ -205,27 +194,28 @@ export const Register = () => {
           {/* Step 3: Business License Upload Form */}
           {currentStep === 3 && (
             <LicenseStepForm
-              onBack={handleBackToStep2}
+              initialData={onboardingData.license}
+              onBack={() => setCurrentStep(2)}
               onStepComplete={handleStep3Complete}
             />
           )}
 
-          {/* Step 4: Stripe Connect Payout Setup Flow (Images 1 & 2) */}
+          {/* Step 4: Stripe Connect Payout Setup Flow */}
           {currentStep === 4 && (
             <PayoutStepForm
               initialBusinessName={onboardingData.business?.business_name || ''}
               businessEmail={onboardingData.business?.business_email || ''}
-              onBack={handleBackToStep3}
+              initialData={onboardingData.payout}
+              onBack={() => setCurrentStep(3)}
               onStepComplete={handleStep4Complete}
             />
           )}
 
-          {/* Step 5: Application Submitted & Review Tracking (Image 3) */}
+          {/* Step 5: Application Submitted & Review Tracking */}
           {currentStep === 5 && (
             <TrackingStepView
               initialData={onboardingData.payout}
               businessEmail={onboardingData.business?.business_email || ''}
-              onRestart={handleBackToStep1}
             />
           )}
         </div>

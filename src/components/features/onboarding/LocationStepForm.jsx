@@ -9,21 +9,21 @@ import { APP_CONFIG } from '../../../utils/constants';
  * Live Google Places API (New) integration using PlaceAutocompleteElement.
  * Extracts: store_address, city, state, postal_code, country, latitude, longitude, place_id.
  */
-export const LocationStepForm = ({ onBack, onStepComplete }) => {
+export const LocationStepForm = ({ onBack, onStepComplete, initialData = null }) => {
   const placesContainerRef = useRef(null);
   const fallbackInputRef = useRef(null);
   const autocompleteElementRef = useRef(null);
 
   const [formData, setFormData] = useState({
-    store_address: '',
-    suite_or_unit: '',
-    city: '',
-    state: '',
-    postal_code: '',
-    country: 'US',
-    latitude: null,
-    longitude: null,
-    place_id: null,
+    store_address: initialData?.store_address || '',
+    suite_or_unit: initialData?.suite_or_unit || '',
+    city: initialData?.city || 'Dallas',
+    state: initialData?.state || 'TX',
+    postal_code: initialData?.postal_code || '75201',
+    country: initialData?.country || 'US',
+    latitude: initialData?.latitude || null,
+    longitude: initialData?.longitude || null,
+    place_id: initialData?.place_id || null,
   });
 
   const [loading, setLoading] = useState(false);
@@ -31,6 +31,21 @@ export const LocationStepForm = ({ onBack, onStepComplete }) => {
   const [googleReady, setGoogleReady] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
   const [successData, setSuccessData] = useState(null);
+
+  // Sync initialData if received or updated asynchronously
+  useEffect(() => {
+    if (initialData && Object.keys(initialData).length > 0) {
+      setFormData((prev) => ({
+        ...prev,
+        ...initialData,
+        store_address: initialData.store_address || prev.store_address,
+        suite_or_unit: initialData.suite_or_unit !== undefined ? initialData.suite_or_unit : prev.suite_or_unit,
+        city: initialData.city || prev.city || 'Dallas',
+        state: initialData.state || prev.state || 'TX',
+        postal_code: initialData.postal_code || prev.postal_code || '75201',
+      }));
+    }
+  }, [initialData]);
 
   // Initialize live Google Places (New) Autocomplete element
   useEffect(() => {
@@ -672,30 +687,33 @@ export const LocationStepForm = ({ onBack, onStepComplete }) => {
 
         {/* Action Buttons Row: Back and Continue */}
         <div style={{ display: 'flex', gap: '12px', marginTop: '0.5rem' }}>
-          <button
-            type="button"
-            onClick={onBack}
-            style={{
-              flex: 1,
-              background: '#fff',
-              color: '#374151',
-              border: '1px solid #d1d5db',
-              borderRadius: '8px',
-              padding: '12px 18px',
-              fontSize: '0.95rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'background 0.15s ease',
-            }}
-          >
-            Back
-          </button>
+          {typeof onBack === 'function' && (
+            <button
+              type="button"
+              onClick={onBack}
+              style={{
+                flex: 1,
+                background: '#fff',
+                color: '#374151',
+                border: '1px solid #d1d5db',
+                borderRadius: '8px',
+                padding: '12px 18px',
+                fontSize: '0.95rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'background 0.15s ease',
+              }}
+            >
+              Back
+            </button>
+          )}
 
           <button
             type="submit"
             disabled={loading}
             style={{
               flex: 1,
+              width: typeof onBack === 'function' ? 'auto' : '100%',
               background: '#2e7d32',
               color: '#fff',
               border: 'none',

@@ -8,14 +8,14 @@ import merchantOnboardingService from '../../../services/merchantOnboardingServi
  * Step 1: Business Profile Form
  * Matches the MEAX Merchant Onboarding screen
  */
-export const BusinessStepForm = ({ onStepComplete }) => {
+export const BusinessStepForm = ({ onStepComplete, initialData = null }) => {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
-    business_name: '',
-    store_category_type: 1, // 1 = Food, 2 = Grocery
-    business_email: '',
-    business_phone: '',
+    business_name: initialData?.business_name || '',
+    store_category_type: initialData?.store_category_type || 1, // 1 = Food, 2 = Grocery
+    business_email: initialData?.business_email || '',
+    business_phone: initialData?.business_phone || '',
     password: '',
   });
 
@@ -192,7 +192,7 @@ export const BusinessStepForm = ({ onStepComplete }) => {
               if (typeof onStepComplete === 'function') {
                 onStepComplete(successData);
               } else {
-                navigate('/register?step=2');
+                navigate(ROUTES.REGISTER);
               }
             }}
             style={{

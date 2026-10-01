@@ -10,9 +10,10 @@ const ALLOWED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png'];
  * Step 3: Business License Upload Form
  * Matches the "Upload your business license" screen with drag-and-drop and file preview.
  */
-export const LicenseStepForm = ({ onBack, onStepComplete }) => {
+export const LicenseStepForm = ({ onBack, onStepComplete, initialData = null }) => {
   const fileInputRef = useRef(null);
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(initialData?.file || null);
+  const [existingUrl, setExistingUrl] = useState(initialData?.license_document_url || null);
   const [isDragging, setIsDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -99,6 +100,12 @@ export const LicenseStepForm = ({ onBack, onStepComplete }) => {
     e.preventDefault();
 
     if (!selectedFile) {
+      if (existingUrl) {
+        if (onStepComplete) {
+          onStepComplete({ file: null, license_document_url: existingUrl });
+        }
+        return;
+      }
       setError('Please select your business license file before continuing.');
       return;
     }
@@ -110,7 +117,11 @@ export const LicenseStepForm = ({ onBack, onStepComplete }) => {
       const result = await merchantOnboardingService.uploadLicense(selectedFile);
       setSuccessData(result);
       if (onStepComplete) {
-        onStepComplete(result);
+        onStepComplete({
+          ...result,
+          file: selectedFile,
+          license_document_url: result?.license_document_url || existingUrl,
+        });
       }
     } catch (err) {
       const message =
@@ -180,7 +191,7 @@ export const LicenseStepForm = ({ onBack, onStepComplete }) => {
     );
   }
 
-  const isContinueEnabled = Boolean(selectedFile) && !loading;
+  const isContinueEnabled = (Boolean(selectedFile) || Boolean(existingUrl)) && !loading;
 
   return (
     <div>
@@ -249,7 +260,7 @@ export const LicenseStepForm = ({ onBack, onStepComplete }) => {
             boxSizing: 'border-box',
           }}
         >
-          {selectedFile ? (
+          {selectedFile || existingUrl ? (
             /* Selected File State */
             <div
               style={{
@@ -299,14 +310,16 @@ export const LicenseStepForm = ({ onBack, onStepComplete }) => {
                     whiteSpace: 'nowrap',
                     maxWidth: '240px',
                   }}
-                  title={selectedFile.name}
+                  title={selectedFile ? selectedFile.name : 'Business License on file'}
                 >
-                  {selectedFile.name}
+                  {selectedFile ? selectedFile.name : 'Business License on file'}
                 </span>
 
-                <span style={{ fontSize: '0.78rem', color: '#6b7280', flexShrink: 0 }}>
-                  ({formatFileSize(selectedFile.size)})
-                </span>
+                {selectedFile && (
+                  <span style={{ fontSize: '0.78rem', color: '#6b7280', flexShrink: 0 }}>
+                    ({formatFileSize(selectedFile.size)})
+                  </span>
+                )}
 
                 <button
                   type="button"

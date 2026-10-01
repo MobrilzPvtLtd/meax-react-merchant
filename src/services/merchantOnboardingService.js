@@ -185,40 +185,10 @@ export const merchantOnboardingService = {
         return fallbackTarget;
       }
 
-      // 2. If submitted and waiting for admin review or rejected, route to Step 5
-      if (
-        tracking?.registration_status === 'UNDER_REVIEW' ||
-        tracking?.registration_status === 'REJECTED'
-      ) {
-        return '/register?step=5';
-      }
-
-      // 3. If in progress, route to the exact step that needs to be completed
-      if (tracking?.current_step) {
-        const stepMap = {
-          BUSINESS: '/register?step=1',
-          DETAILS: '/register?step=2',
-          LICENSE: '/register?step=3',
-          PAYOUTS: '/register?step=4',
-          TRACKING: '/register?step=5',
-        };
-        return stepMap[tracking.current_step] || '/register?step=2';
-      }
-
-      // 4. If status is IN_PROGRESS but no specific step is indicated
-      if (tracking?.registration_status === 'IN_PROGRESS') {
-        return '/register?step=2';
-      }
+      // 2. Unapproved merchant onboarding route is clean /register
+      return '/register';
     } catch (err) {
       console.warn('Unable to resolve merchant onboarding tracking status:', err);
-      // If merchant record is not found for this user, they need to fill Step 1
-      if (
-        err?.code === 'MERCHANT_NOT_FOUND' ||
-        err?.status === 404 ||
-        err?.message?.includes('Merchant profile not found')
-      ) {
-        return '/register?step=1';
-      }
     }
     return fallbackTarget;
   },

@@ -11,17 +11,19 @@ import merchantOnboardingService from '../../../services/merchantOnboardingServi
 export const PayoutStepForm = ({
   initialBusinessName = '',
   businessEmail = '',
+  initialData = null,
   onBack,
   onStepComplete,
 }) => {
-  // 'INTRO' (Image 1) or 'FORM' (Image 2)
-  const [subStep, setSubStep] = useState('INTRO');
+  // 'INTRO' (Image 1) or 'FORM' (Image 2) - if returning to step with prefilled data, go directly to form
+  const [subStep, setSubStep] = useState(initialData?.legal_business_name ? 'FORM' : 'INTRO');
 
   const [formData, setFormData] = useState({
-    legal_business_name: initialBusinessName ? `${initialBusinessName} LLC` : '',
-    ein: '12-3456789',
-    routing_number: '110000000',
-    account_number: '000123456789',
+    legal_business_name:
+      initialData?.legal_business_name || (initialBusinessName ? `${initialBusinessName} LLC` : ''),
+    ein: initialData?.ein || '12-3456789',
+    routing_number: initialData?.routing_number || '110000000',
+    account_number: initialData?.account_number || '000123456789',
   });
 
   const [loading, setLoading] = useState(false);

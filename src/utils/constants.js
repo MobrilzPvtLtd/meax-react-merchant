@@ -13,7 +13,7 @@ export const ROUTES = {
   HOME: '/',
   LOGIN: '/login',
   REGISTER: '/register',
-  ONBOARDING_TRACKING: '/register?step=5',
+  ONBOARDING_TRACKING: '/register',
   FORGOT_PASSWORD: '/forgot-password',
   RESET_PASSWORD: '/reset-password',
   DASHBOARD: '/dashboard',
