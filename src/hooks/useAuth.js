@@ -16,6 +16,7 @@ import {
   clearError,
 } from '../store/authSlice';
 import authService from '../services/authService';
+import merchantOnboardingService from '../services/merchantOnboardingService';
 import { ROUTES } from '../utils/constants';
 
 export const useAuth = () => {
@@ -53,7 +54,15 @@ export const useAuth = () => {
     try {
       const data = await authService.login(credentials);
       dispatch(loginSuccess(data));
-      const target = redirectTo || location.state?.from?.pathname || ROUTES.DASHBOARD;
+      
+      let target = redirectTo || location.state?.from?.pathname || ROUTES.DASHBOARD;
+      
+      // Determine onboarding & approval destination for merchants
+      const userRole = data?.user?.role;
+      if (userRole === 'MERCHANT' || !userRole) {
+        target = await merchantOnboardingService.resolveDestination(target);
+      }
+
       navigate(target, { replace: true });
       return data;
     } catch (err) {

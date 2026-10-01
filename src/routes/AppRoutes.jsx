@@ -1,12 +1,14 @@
-import React, { Suspense, lazy, useEffect } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
+import merchantOnboardingService from '../services/merchantOnboardingService';
 import MainLayout from '../components/layout/MainLayout';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { ROUTES, USER_ROLES } from '../utils/constants';
 
 // Route-level code splitting via dynamic imports
 const Login = lazy(() => import('../pages/Login/Login'));
+const Register = lazy(() => import('../pages/Register/Register'));
 const ResetPassword = lazy(() => import('../pages/ResetPassword/ResetPassword'));
 const Dashboard = lazy(() => import('../pages/Dashboard/Dashboard'));
 const Orders = lazy(() => import('../pages/Orders/Orders'));
@@ -18,18 +20,64 @@ const Settings = lazy(() => import('../pages/Settings/Settings'));
  * 1. Waits for session verification to complete.
  * 2. Verifies authentication status.
  * 3. Enforces Role-Based Access Control (RBAC).
- * 4. Preserves requested location to seamlessly redirect after login.
+ * 4. Ensures merchant is approved by admin; otherwise redirects to their active onboarding step.
  */
 const ProtectedRoute = ({ children, requiredRole = USER_ROLES.MERCHANT }) => {
   const { isAuthenticated, isInitialized, user, loading } = useAuth();
   const location = useLocation();
+  const [checkingApproval, setCheckingApproval] = useState(true);
+  const [onboardingTarget, setOnboardingTarget] = useState(null);
 
-  if (!isInitialized || loading) {
-    return <LoadingSpinner fullScreen message="Checking session..." />;
+  useEffect(() => {
+    let isCancelled = false;
+
+    const checkApproval = async () => {
+      // Platform Admins bypass merchant onboarding restrictions
+      if (!isAuthenticated || user?.role === USER_ROLES.ADMIN) {
+        if (!isCancelled) setCheckingApproval(false);
+        return;
+      }
+
+      try {
+        const dest = await merchantOnboardingService.resolveDestination(ROUTES.DASHBOARD);
+        if (dest && dest !== ROUTES.DASHBOARD && !dest.startsWith('/dashboard')) {
+          if (!isCancelled) {
+            setOnboardingTarget(dest);
+          }
+        }
+      } catch (err) {
+        console.warn('[ProtectedRoute] Merchant approval check failed:', err);
+      } finally {
+        if (!isCancelled) {
+          setCheckingApproval(false);
+        }
+      }
+    };
+
+    if (isInitialized && !loading) {
+      if (isAuthenticated) {
+        checkApproval();
+      } else {
+        setCheckingApproval(false);
+      }
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isAuthenticated, isInitialized, loading, user?.role]);
+
+  if (!isInitialized || loading || (isAuthenticated && checkingApproval && user?.role !== USER_ROLES.ADMIN)) {
+    return <LoadingSpinner fullScreen message="Verifying merchant status..." />;
   }
 
   if (!isAuthenticated) {
     return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />;
+  }
+
+  // If merchant has not yet been approved by admin, redirect to active onboarding step
+  if (onboardingTarget) {
+    return <Navigate to={onboardingTarget} replace />;
   }
 
   // RBAC validation: allow merchants and platform admins
@@ -68,6 +116,11 @@ export const AppRoutes = () => {
       <Routes>
         {/* Public Auth Routes */}
         <Route path={ROUTES.LOGIN} element={<Login />} />
+        <Route path={ROUTES.REGISTER} element={<Register />} />
+        <Route
+          path="/become-merchant"
+          element={<Navigate to={ROUTES.REGISTER} replace />}
+        />
         <Route path={ROUTES.RESET_PASSWORD} element={<ResetPassword />} />
         <Route
           path={ROUTES.FORGOT_PASSWORD}

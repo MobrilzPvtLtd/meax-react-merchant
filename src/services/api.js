@@ -84,15 +84,32 @@ api.interceptors.response.use(
     // Extract human-friendly error message from backend
     let message = responseData?.error?.message || responseData?.message;
 
-    // Handle backend validation details array if present (e.g. Zod)
-    if (
-      responseData?.error?.details &&
-      Array.isArray(responseData.error.details) &&
-      responseData.error.details.length > 0
-    ) {
-      message = responseData.error.details
+    const details = Array.isArray(responseData?.error?.details)
+      ? responseData.error.details
+      : Array.isArray(responseData?.details)
+      ? responseData.details
+      : [];
+
+    const fieldErrors = {};
+    if (details.length > 0) {
+      details.forEach((d) => {
+        if (d.field) {
+          fieldErrors[d.field] = d.message || d.msg;
+        }
+      });
+      const detailMessages = details
         .map((d) => d.message || d.msg || JSON.stringify(d))
-        .join('. ');
+        .filter(Boolean);
+      if (detailMessages.length > 0) {
+        message = detailMessages.join('. ');
+      }
+    } else if (
+      responseData?.error?.details &&
+      typeof responseData.error.details === 'object'
+    ) {
+      Object.entries(responseData.error.details).forEach(([key, val]) => {
+        fieldErrors[key] = typeof val === 'string' ? val : (val.message || JSON.stringify(val));
+      });
     }
 
     if (!message) {
@@ -105,9 +122,11 @@ api.interceptors.response.use(
     const customError = new Error(message);
     customError.status = status;
     customError.data = responseData;
-    customError.code = responseData?.error?.code || error.code;
+    customError.code = responseData?.error?.code || responseData?.code || error.code;
+    customError.details = details;
+    customError.fieldErrors = fieldErrors;
 
-    console.warn(`[ApiClient] Request to ${requestUrl} failed:`, message);
+    console.warn(`[ApiClient] Request to ${requestUrl} failed:`, message, fieldErrors);
 
     return Promise.reject(customError);
   }

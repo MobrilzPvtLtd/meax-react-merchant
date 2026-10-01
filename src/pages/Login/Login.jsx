@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import LoginForm from '../../components/features/auth/LoginForm';
 import useAuth from '../../hooks/useAuth';
+import merchantOnboardingService from '../../services/merchantOnboardingService';
 import { ROUTES } from '../../utils/constants';
 import meaxLogo from '../../assets/images/meax-logo.png';
 import './Login.css';
@@ -11,16 +12,35 @@ import './Login.css';
  * Custom branded authentication screen for MEAX Merchant Portal.
  */
 export const Login = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    if (isAuthenticated) {
-      const target = location.state?.from?.pathname || ROUTES.DASHBOARD;
-      navigate(target, { replace: true });
-    }
-  }, [isAuthenticated, navigate, location]);
+    let isCancelled = false;
+
+    const checkAndRedirect = async () => {
+      if (isAuthenticated) {
+        let target = location.state?.from?.pathname || ROUTES.DASHBOARD;
+        if (user?.role === 'MERCHANT' || !user?.role) {
+          try {
+            target = await merchantOnboardingService.resolveDestination(target);
+          } catch (err) {
+            console.warn('[Login] Destination resolution error:', err);
+          }
+        }
+        if (!isCancelled) {
+          navigate(target, { replace: true });
+        }
+      }
+    };
+
+    checkAndRedirect();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isAuthenticated, user?.role, navigate, location]);
 
   return (
     <div className="login-root">

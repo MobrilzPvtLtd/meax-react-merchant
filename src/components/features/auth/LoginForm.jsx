@@ -158,12 +158,12 @@ export const LoginForm = () => {
 
           <div style={{ fontSize: '0.84rem', color: '#6b7280' }}>
             New to MEAX?{' '}
-            <a
-              href="#become-merchant"
+            <Link
+              to={ROUTES.REGISTER}
               style={{ color: '#2e7d32', fontWeight: 600, textDecoration: 'underline' }}
             >
               Become a merchant
-            </a>
+            </Link>
           </div>
         </div>
 
